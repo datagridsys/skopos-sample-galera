@@ -1,0 +1,147 @@
+doctype: "com.datagridsys.doctype/skopos/model"
+version: 1
+
+components:
+    galera-seed:
+        # Image src:  https://github.com/colinmollenhour/mariadb-galera-swarm
+        # The seed uses a randomly named blank volume for its initial mariadb data.
+        image: 30blows/galera:${GALERA_VER-1.0}
+        replicas: 1
+        singleton: true
+        lifecycle:
+            post_component:
+                steps:
+                    # This delay may be replaced with a manual gate or with a
+                    # script step which verifies the seed is ready to accept
+                    # connections before continuing.
+                    - delay: 5
+        env:
+            # Set env vars on container run from the values set in the env file.
+            "XTRABACKUP_PASSWORD" :  "{{.XTRABACKUP_PASSWORD}}"
+            "CLUSTER_NAME"        :  "{{.CLUSTER_NAME}}"
+            "MYSQL_ROOT_PASSWORD" :  "{{.MYSQL_ROOT_PASSWORD}}"
+        plugin:
+            docker-swarm:
+                # Command line argument to the container which causes it to act
+                # as a galera cluster seed.
+                args: ["seed"]
+                raw:
+                    TaskTemplate:
+                        Placement:
+                            Constraints: ["node.labels.gseed == 1"]
+                        LogDriver:              # explicit for docker datacenter testing
+                            Name:  "json-file"
+        visual:
+            x: 500
+            y: 325
+
+    galera-n0:
+        image: 30blows/galera:${GALERA_VER-1.0}
+        replicas: 1
+        singleton: true
+        uses:
+            galera-seed: {}
+        env:
+            "XTRABACKUP_PASSWORD" :  "{{.XTRABACKUP_PASSWORD}}"
+            "CLUSTER_NAME"        :  "{{.CLUSTER_NAME}}"
+            "MYSQL_ROOT_PASSWORD" :  "{{.MYSQL_ROOT_PASSWORD}}"
+        plugin:
+            docker-swarm:
+                # Command line arguments to the container which causes it to act
+                # as a galera node, and which causes the cluster to be formed from
+                # the specified IP addresses/hostnames (swarm task names resolvable
+                # on the app project network)
+                args: ["node", "tasks.galera-seed,tasks.galera-n0,tasks.galera-n1,tasks.galera-n2,tasks.galera-n3"]
+                raw:
+                    TaskTemplate:
+                        Placement:
+                            # Constrain each galera node to a pair of docker swarm nodes.
+                            # Ideally, the swarm node pairs should be non-overlapping.
+                            Constraints: ["node.labels.gpair0 == 1"]
+                        LogDriver:
+                            Name:  "json-file"
+        volumes:
+            # Use that named volume associated to the env file volume "galera-n0"
+            galera-n0:
+                path: "/var/lib/mysql"
+        visual:
+            x: 100
+            y: 100
+
+    galera-n1:
+        image: 30blows/galera:${GALERA_VER-1.0}
+        replicas: 1
+        singleton: true
+        uses:
+            galera-seed: {}
+        env:
+            "XTRABACKUP_PASSWORD" :  "{{.XTRABACKUP_PASSWORD}}"
+            "CLUSTER_NAME"        :  "{{.CLUSTER_NAME}}"
+            "MYSQL_ROOT_PASSWORD" :  "{{.MYSQL_ROOT_PASSWORD}}"
+        plugin:
+            docker-swarm:
+                args: ["node", "tasks.galera-seed,tasks.galera-n0,tasks.galera-n1,tasks.galera-n2,tasks.galera-n3"]
+                raw:
+                    TaskTemplate:
+                        Placement:
+                            Constraints: ["node.labels.gpair1 == 1"]
+                        LogDriver:
+                            Name:  "json-file"
+        volumes:
+            galera-n1:
+                path: "/var/lib/mysql"
+        visual:
+            x: 100
+            y: 250
+
+    galera-n2:
+        image: 30blows/galera:${GALERA_VER-1.0}
+        replicas: 1
+        singleton: true
+        uses:
+            galera-seed: {}
+        env:
+            "XTRABACKUP_PASSWORD" :  "{{.XTRABACKUP_PASSWORD}}"
+            "CLUSTER_NAME"        :  "{{.CLUSTER_NAME}}"
+            "MYSQL_ROOT_PASSWORD" :  "{{.MYSQL_ROOT_PASSWORD}}"
+        plugin:
+            docker-swarm:
+                args: ["node", "tasks.galera-seed,tasks.galera-n0,tasks.galera-n1,tasks.galera-n2,tasks.galera-n3"]
+                raw:
+                    TaskTemplate:
+                        Placement:
+                            Constraints: ["node.labels.gpair2 == 1"]
+                        LogDriver:
+                            Name:  "json-file"
+        volumes:
+            galera-n2:
+                path: "/var/lib/mysql"
+        visual:
+            x: 100
+            y: 400
+
+    galera-n3:
+        image: 30blows/galera:${GALERA_VER-1.0}
+        replicas: 1
+        singleton: true
+        uses:
+            galera-seed: {}
+        env:
+            "XTRABACKUP_PASSWORD" :  "{{.XTRABACKUP_PASSWORD}}"
+            "CLUSTER_NAME"        :  "{{.CLUSTER_NAME}}"
+            "MYSQL_ROOT_PASSWORD" :  "{{.MYSQL_ROOT_PASSWORD}}"
+        plugin:
+            docker-swarm:
+                args: ["node", "tasks.galera-seed,tasks.galera-n0,tasks.galera-n1,tasks.galera-n2,tasks.galera-n3"]
+                raw:
+                    TaskTemplate:
+                        Placement:
+                            Constraints: ["node.labels.gpair3 == 1"]
+                        LogDriver:
+                            Name:  "json-file"
+        volumes:
+            galera-n3:
+                path: "/var/lib/mysql"
+        visual:
+            x: 100
+            y: 550
