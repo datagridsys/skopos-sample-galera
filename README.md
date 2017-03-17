@@ -20,13 +20,13 @@ The present application suffers from two blemishes which will be fixed in a next
 
 Once these two issues are resolved, many different copies of this application can be deployed from a single model to the same swarm simply by generating an environment file for each which sets a handful of variables (replicas, node labels, and ports).
 
-## Files
+### Files
 
 * `model.bootstrap.yaml`: model to bootstrap the galera cluster.  This model will create the seed service first and then four galera nodes which sync to the seed.
 * `model.yaml`: model to remove the seed or update the deployed cluster.  This model is identical to the bootstrap model except the seed replica count is zero.  
 * `env.yaml`:  env file which uses docker-swarm as the core plugin, defines volumes for the nodes, and defines vars for instance environment variables.
 
-## Usage Notes
+### Usage Notes
 
 * The seed uses a randomly named volume on instance creation for its mariadb seed data.
 * The seed, and each node, is created as its own service, and each is represented by its own skopos component.  Each of these is constrained to be placed on a swarm node matching a label.  
@@ -35,7 +35,7 @@ Once these two issues are resolved, many different copies of this application ca
     * Divide the swarm nodes into non-overlapping pairs.  Label four of these pairs so that each pair has one of these labels: `gpair0`, `gpair1`, `gpair2`, `gpair3`.  Each galera node is constrained to its labeled pair of swarm nodes, so that if a swarm node fails, the galera node is re-started on the other node of its pair where it may sync its data and recover the galera cluster.
 * To bootstrap the galera cluster, deploy using `model.bootstrap.yaml`.  After bootstrapping, deploy using `model.yaml` to remove the seed.
 
-## Quick Start Example
+### Quick Start Example
 
 Pull the Skopos Docker image to a swarm manager node:  
 ```
@@ -77,7 +77,7 @@ From the directory containing the application model and environment files, load 
 
 The Skopos UI, accessible on port 8090 of the manager node, now displays the bootstrap model ready to deploy.
 
-# Verification
+### Verification
 
 A quick verification:
 
