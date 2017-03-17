@@ -3,9 +3,8 @@ version: 1
 
 components:
     galera-seed:
-        # Image src:  https://github.com/colinmollenhour/mariadb-galera-swarm
         # The seed uses a randomly named blank volume for its initial mariadb data.
-        image: 30blows/galera:${GALERA_VER-1.0}
+        image: ${GALERA_IMAGE}:${GALERA_VER-latest}
         replicas: 1
         singleton: true
         lifecycle:
@@ -26,17 +25,19 @@ components:
                 # as a galera cluster seed.
                 args: ["seed"]
                 raw:
+                    # Constrain seed to labeled swarm node; set log driver
+                    # explicitly to json-file for docker datacenter testing.
                     TaskTemplate:
                         Placement:
-                            Constraints: ["node.labels.gseed == 1"]
-                        LogDriver:              # explicit for docker datacenter testing
+                            Constraints: ["node.labels.gseed==1"]
+                        LogDriver:
                             Name:  "json-file"
         visual:
-            x: 500
+            x: 900
             y: 325
 
     galera-n0:
-        image: 30blows/galera:${GALERA_VER-1.0}
+        image: ${GALERA_IMAGE}:${GALERA_VER-latest}
         replicas: 1
         singleton: true
         uses:
@@ -50,26 +51,37 @@ components:
                 # Command line arguments to the container which causes it to act
                 # as a galera node, and which causes the cluster to be formed from
                 # the specified IP addresses/hostnames (swarm task names resolvable
-                # on the app project network)
+                # on the app project network).
                 args: ["node", "tasks.galera-seed,tasks.galera-n0,tasks.galera-n1,tasks.galera-n2,tasks.galera-n3"]
                 raw:
+                    # Constrain each galera node to a pair of docker swarm nodes.
+                    # Ideally, the swarm node pairs should be non-overlapping; they
+                    # must be non-overlapping if using publish mode=host rather
+                    # than the swarm routing mesh (the gateway commented out below).
                     TaskTemplate:
                         Placement:
-                            # Constrain each galera node to a pair of docker swarm nodes.
-                            # Ideally, the swarm node pairs should be non-overlapping.
-                            Constraints: ["node.labels.gpair0 == 1"]
+                            Constraints: ["node.labels.gpair0==1"]
                         LogDriver:
                             Name:  "json-file"
+                    # Expose the service on a port of the host it is running on
+                    # rather than using the swarm routing mesh.
+                    EndpointSpec:
+                        Mode:  vip
+                        Ports:
+                            - Protocol: tcp
+                              TargetPort: 3306
+                              PublishedPort: 10000
+                              PublishMode: host
         volumes:
-            # Use that named volume associated to the env file volume "galera-n0"
+            # Use that named volume associated to the env file volume "galera-n0".
             galera-n0:
                 path: "/var/lib/mysql"
         visual:
-            x: 100
+            x: 500
             y: 100
 
     galera-n1:
-        image: 30blows/galera:${GALERA_VER-1.0}
+        image: ${GALERA_IMAGE}:${GALERA_VER-latest}
         replicas: 1
         singleton: true
         uses:
@@ -84,18 +96,25 @@ components:
                 raw:
                     TaskTemplate:
                         Placement:
-                            Constraints: ["node.labels.gpair1 == 1"]
+                            Constraints: ["node.labels.gpair1==1"]
                         LogDriver:
                             Name:  "json-file"
+                    EndpointSpec:
+                        Mode:  vip
+                        Ports:
+                            - Protocol: tcp
+                              TargetPort: 3306
+                              PublishedPort: 10001
+                              PublishMode: host
         volumes:
             galera-n1:
                 path: "/var/lib/mysql"
         visual:
-            x: 100
+            x: 500
             y: 250
 
     galera-n2:
-        image: 30blows/galera:${GALERA_VER-1.0}
+        image: ${GALERA_IMAGE}:${GALERA_VER-latest}
         replicas: 1
         singleton: true
         uses:
@@ -110,18 +129,25 @@ components:
                 raw:
                     TaskTemplate:
                         Placement:
-                            Constraints: ["node.labels.gpair2 == 1"]
+                            Constraints: ["node.labels.gpair2==1"]
                         LogDriver:
                             Name:  "json-file"
+                    EndpointSpec:
+                        Mode:  vip
+                        Ports:
+                            - Protocol: tcp
+                              TargetPort: 3306
+                              PublishedPort: 10002
+                              PublishMode: host
         volumes:
             galera-n2:
                 path: "/var/lib/mysql"
         visual:
-            x: 100
+            x: 500
             y: 400
 
     galera-n3:
-        image: 30blows/galera:${GALERA_VER-1.0}
+        image: ${GALERA_IMAGE}:${GALERA_VER-latest}
         replicas: 1
         singleton: true
         uses:
@@ -136,12 +162,35 @@ components:
                 raw:
                     TaskTemplate:
                         Placement:
-                            Constraints: ["node.labels.gpair3 == 1"]
+                            Constraints: ["node.labels.gpair3==1"]
                         LogDriver:
                             Name:  "json-file"
+                    EndpointSpec:
+                        Mode:  vip
+                        Ports:
+                            - Protocol: tcp
+                              TargetPort: 3306
+                              PublishedPort: 10003
+                              PublishMode: host
         volumes:
             galera-n3:
                 path: "/var/lib/mysql"
         visual:
-            x: 100
+            x: 500
             y: 550
+
+# alternatively:
+#   - comment out the plugin config raw EndpointSpec for the galera nodes
+#   - un-comment the gateways section below to expose the galera nodes through
+#     the swarm routing mesh
+
+# gateways:
+#     galera-gwy:
+#         type: host_port
+#         exposes:
+#             - port: "10000/tcp"
+#               target_port: "3306"
+#         target: [galera-n0, galera-n1, galera-n2, galera-n3]
+#         visual:
+#             x: 100
+#             y: 325
