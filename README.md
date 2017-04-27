@@ -16,7 +16,7 @@ Each galera node is constrained to run on any swarm node with a particular label
 
 ### Accessing the Galera Cluster
 
-This ample application publishes each galera node's mariadb port (3306) on the host it is running (`PublishMode: host`), rather than publishing this port for the service using the swarm routing mesh.  Docker 17.03.0-ce suffers from docker issue [31249](https://github.com/docker/docker/issues/31249) - two services constrained to different swarm nodes cannot expose the same port using mode=host. Because of this, each of the four galera node services of this app uses a different port in the range 10000-10003.
+This sample application publishes each galera node's mariadb port (3306) on the host it is running (`PublishMode: host`), rather than publishing this port for the service using the swarm routing mesh.  Docker 17.03.0-ce suffers from docker issue [31249](https://github.com/docker/docker/issues/31249) - two services constrained to different swarm nodes cannot expose the same port using mode=host. Because of this, each of the four galera node services of this app uses a different port in the range 10000-10003.
 
 To change this behavior and use the swarm routing mesh instead of a single host port map for each node:
 
@@ -37,7 +37,7 @@ The application includes several environment files to be used in combination.  S
 * The seed, and each node, is created as its own service, and each is represented by its own skopos component.  Each of these is constrained to be placed on a swarm node matching a label.  
 * Swarm node preparation:
     * Label one or more nodes of the swarm with `gseed` (e.g., `docker node update --label-add gseed=1 <node-id>`).  The seed will be created on one of the labeled nodes.
-    * Divide the swarm nodes into non-overlapping pairs.  Label four of these pairs so that each pair has one of these labels: `gpair0`, `gpair1`, `gpair2`, or `gpair3` each with a value of 1.  Each galera node is constrained to its labeled pair of swarm nodes for failover purposes.
+    * Divide the swarm nodes into non-overlapping pairs.  Label four of these pairs so that each pair has one of these labels: `gpair0`, `gpair1`, `gpair2`, or `gpair3` each with a value of 1.
 * To bootstrap the galera cluster, deploy using all three environment files.  To remove the seed node, or upgrade the cluster, omit `env.bootstrap.yaml`.
 
 ### Quick Start Example
@@ -63,9 +63,9 @@ docker run                               \
 Start the skopos engine (example binds to port 8090):
 
 ```
-docker run -d --net=host --restart=unless-stopped --name skopos   \
+docker run -d -p 8090:80 --restart=unless-stopped --name skopos   \
     -v /var/run/docker.sock:/var/run/docker.sock                  \
-    datagridsys/skopos:beta --bind localhost:8090
+    datagridsys/skopos:beta
 ```
 
 Clone this repo to a working directorory on the same manager node:
@@ -73,7 +73,7 @@ Clone this repo to a working directorory on the same manager node:
 git clone https://github.com/datagridsys/skopos-sample-galera.git
 ```
 
-Label the swarm nodes as described above.  Verify all swarm node hosts expose the ports 10000-10003 to the outside world.
+Label the swarm nodes as described above.  Verify all swarm hosts expose the ports 10000-10003 to the outside world.
 
 From the directory containing the application model and environment files, load the application:
 ```
