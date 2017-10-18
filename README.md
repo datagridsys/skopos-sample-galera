@@ -42,47 +42,39 @@ The application includes several environment files to be used in combination.  S
 
 ### Quick Start Example
 
-Pull the Skopos Docker image to a swarm manager node:  
-```
-docker pull datagridsys/skopos:beta
-```
+This is a stream-lined quick-start example.  See the [Skopos documentation](http://doc.opsani.com/skopos/edge/README/) for detailed information.
 
-Extract and install the control utility as `~/bin/sks-ctl`:
+Install the `skopos` command line utility on a swarm manager node as `~/bin/skopos`:
 ```
+wget https://s3.amazonaws.com/get-skopos/edge/linux/skopos
+chmod +x skopos
 mkdir -p ~/bin
-rm -rf ~/bin/sks-ctl
-touch ~/bin/sks-ctl
-docker run                               \
-    --rm                                 \
-    -v ~/bin/sks-ctl:/skopos/bin/sks-ctl \
-    --entrypoint "/bin/bash"             \
-    datagridsys/skopos:beta              \
-    -c 'cp -a engine /skopos/bin/sks-ctl'
+mv skopos ~/bin
 ```
 
-Start the skopos engine (example binds to port 8090):
+Start the Skopos engine on the same node (example binds to the default port 8100):
 
 ```
-docker run -d -p 8090:80 --restart=unless-stopped --name skopos   \
-    -v /var/run/docker.sock:/var/run/docker.sock                  \
-    datagridsys/skopos:beta
+docker run -d -p 8100:8100 --restart=unless-stopped --name skopos \
+   -v /var/run/docker.sock:/var/run/docker.sock \
+   opsani/skopos:edge
 ```
 
-Clone this repo to a working directorory on the same manager node:
+Clone this repo to a working directory:
 ```
-git clone https://github.com/datagridsys/skopos-sample-galera.git
+git clone https://github.com/opsani/skopos-sample-galera.git
 ```
 
 Label the swarm nodes as described above.  Verify all swarm hosts expose the ports 10000-10003 to the outside world.
 
 From the directory containing the application model and environment files, load the application:
 ```
-~/bin/sks-ctl -bind :8090 load -project galera -env env.yaml -env env.ports.yaml -env env.bootstrap.yaml model.yaml
+~/bin/skopos load -project galera -env env.yaml -env env.ports.yaml -env env.bootstrap.yaml model.yaml
 ```
 
-The Skopos UI, accessible on port 8090 of the manager node, now displays the model ready for its bootstrap deploy.  Once the cluster is deployed, the seed may be destroyed by deploying with:
+The Skopos UI, accessible on port 8100 of the manager node, now displays the model ready for its bootstrap deploy.  Once the cluster is deployed, the seed may be destroyed by deploying with:
 ```
-~/bin/sks-ctl -bind :8090 load -project galera -env env.yaml -env env.ports.yaml model.yaml
+~/bin/skopos load -project galera -env env.yaml -env env.ports.yaml model.yaml
 ```
 
 ### Verification
