@@ -2,217 +2,83 @@ doctype: "com.datagridsys.doctype/skopos/model"
 version: 1
 
 components:
-    galera-seed:
-        # The seed uses a randomly named blank volume for its initial mariadb data.
+    seed:
         image: ${GALERA_IMAGE}:${GALERA_VER-latest}
-        replicas: ${SEED_REPLICAS}
+        replicas: ${SEED_REPLICAS-0}  # default is 0 replicas
         singleton: true
-        lifecycle:
-            post_component:
-                steps:
-                    # This delay may be replaced with a manual gate or with a
-                    # script step which verifies the seed is ready to accept
-                    # connections before continuing.
-                    - delay: 5
         env:
-            # Set env vars on container run from the values set in the env file.
-            "XTRABACKUP_PASSWORD" :  "${XTRABACKUP_PASSWORD}"
-            "CLUSTER_NAME"        :  "${CLUSTER_NAME}"
-            "MYSQL_ROOT_PASSWORD" :  "${MYSQL_ROOT_PASSWORD}"
+            XTRABACKUP_PASSWORD : ${XTRABACKUP_PASSWORD}
+            MYSQL_ROOT_PASSWORD : ${MYSQL_ROOT_PASSWORD}
+            MYSQL_USER          : ${MYSQL_USER}
+            MYSQL_PASSWORD      : ${MYSQL_PASSWORD}
+            MYSQL_DATABASE      : ${MYSQL_DATABASE}
         plugin:
             docker-swarm:
-                # Command line argument to the container which causes it to act
-                # as a galera cluster seed.
-                args: ["seed"]
-                raw:
-                    # Constrain seed to labeled swarm node; set log driver
-                    # explicitly to json-file for docker datacenter testing.
-                    TaskTemplate:
-                        Placement:
-                            Constraints: ["node.labels.gseed==1"]
-                        LogDriver:
-                            Name:  "json-file"
+                args: ["seed"]  # run as galera cluster seed
         visual:
-            x: 900
-            y: 325
+            x: 990
+            y: 90
 
-    galera-n0:
+    cluster:
         image: ${GALERA_IMAGE}:${GALERA_VER-latest}
-        replicas: 1
-        singleton: true
+        provides:
+            ports: [ "3306" ]
         uses:
-            galera-seed: {}
+            seed: {}
         env:
-            "XTRABACKUP_PASSWORD" :  "${XTRABACKUP_PASSWORD}"
-            "CLUSTER_NAME"        :  "${CLUSTER_NAME}"
-            "MYSQL_ROOT_PASSWORD" :  "${MYSQL_ROOT_PASSWORD}"
+            XTRABACKUP_PASSWORD: ${XTRABACKUP_PASSWORD}
         plugin:
             docker-swarm:
-                # Command line arguments to the container which causes it to act
-                # as a galera node, and which causes the cluster to be formed from
-                # the specified IP addresses/hostnames (swarm task names resolvable
-                # on the app project network).
-                args: ["node", "tasks.galera-seed,tasks.galera-n0,tasks.galera-n1,tasks.galera-n2,tasks.galera-n3"]
+                # run as galera cluster node; list resolvable tasks for cluster
+                args: ["node", "tasks.seed,tasks.cluster"]
                 raw:
-                    # Constrain each galera node to a pair of docker swarm nodes.
-                    # Ideally, the swarm node pairs should be non-overlapping; they
-                    # must be non-overlapping if using publish mode=host rather
-                    # than the swarm routing mesh (the gateway commented out below).
+                    # create galera nodes as a global swarm service; constrain
+                    # each galera node to a swarm node with label db==yes
+                    Mode:
+                        Global: {}
                     TaskTemplate:
                         Placement:
-                            Constraints: ["node.labels.gpair0==1"]
-                        LogDriver:
-                            Name:  "json-file"
+                            Constraints: ["node.labels.db==yes"]
         volumes:
-            # Use that named volume associated to the env file volume "galera-n0".
-            galera-n0:
+            galera-node-vol:
                 path: "/var/lib/mysql"
         visual:
-            x: 500
-            y: 100
+            x: 660
+            y: 90
 
-    galera-n1:
-        image: ${GALERA_IMAGE}:${GALERA_VER-latest}
-        replicas: 1
+    phpmyadmin:
+        image: phpmyadmin/phpmyadmin:latest
         singleton: true
+        provides:
+            ports: [ "80" ]
         uses:
-            galera-seed: {}
+            seed: {}
+            cluster: {}
         env:
-            "XTRABACKUP_PASSWORD" :  "${XTRABACKUP_PASSWORD}"
-            "CLUSTER_NAME"        :  "${CLUSTER_NAME}"
-            "MYSQL_ROOT_PASSWORD" :  "${MYSQL_ROOT_PASSWORD}"
-        plugin:
-            docker-swarm:
-                args: ["node", "tasks.galera-seed,tasks.galera-n0,tasks.galera-n1,tasks.galera-n2,tasks.galera-n3"]
-                raw:
-                    TaskTemplate:
-                        Placement:
-                            Constraints: ["node.labels.gpair1==1"]
-                        LogDriver:
-                            Name:  "json-file"
-        volumes:
-            galera-n1:
-                path: "/var/lib/mysql"
+            MYSQL_ROOT_PASSWORD : ${MYSQL_ROOT_PASSWORD}
+            MYSQL_USER          : ${MYSQL_USER}
+            MYSQL_PASSWORD      : ${MYSQL_PASSWORD}
+            PMA_ARBITRARY       : 1
         visual:
-            x: 500
-            y: 250
+            x: 360
+            y: 290
 
-    galera-n2:
-        image: ${GALERA_IMAGE}:${GALERA_VER-latest}
-        replicas: 1
-        singleton: true
-        uses:
-            galera-seed: {}
-        env:
-            "XTRABACKUP_PASSWORD" :  "${XTRABACKUP_PASSWORD}"
-            "CLUSTER_NAME"        :  "${CLUSTER_NAME}"
-            "MYSQL_ROOT_PASSWORD" :  "${MYSQL_ROOT_PASSWORD}"
-        plugin:
-            docker-swarm:
-                args: ["node", "tasks.galera-seed,tasks.galera-n0,tasks.galera-n1,tasks.galera-n2,tasks.galera-n3"]
-                raw:
-                    TaskTemplate:
-                        Placement:
-                            Constraints: ["node.labels.gpair2==1"]
-                        LogDriver:
-                            Name:  "json-file"
-        volumes:
-            galera-n2:
-                path: "/var/lib/mysql"
-        visual:
-            x: 500
-            y: 400
-
-    galera-n3:
-        image: ${GALERA_IMAGE}:${GALERA_VER-latest}
-        replicas: 1
-        singleton: true
-        uses:
-            galera-seed: {}
-        env:
-            "XTRABACKUP_PASSWORD" :  "${XTRABACKUP_PASSWORD}"
-            "CLUSTER_NAME"        :  "${CLUSTER_NAME}"
-            "MYSQL_ROOT_PASSWORD" :  "${MYSQL_ROOT_PASSWORD}"
-        plugin:
-            docker-swarm:
-                args: ["node", "tasks.galera-seed,tasks.galera-n0,tasks.galera-n1,tasks.galera-n2,tasks.galera-n3"]
-                raw:
-                    TaskTemplate:
-                        Placement:
-                            Constraints: ["node.labels.gpair3==1"]
-                        LogDriver:
-                            Name:  "json-file"
-        volumes:
-            galera-n3:
-                path: "/var/lib/mysql"
-        visual:
-            x: 500
-            y: 550
-
-# Expose each galera node on a port of the host it is running on (do not use the
-# swarm routing mesh)
 gateways:
-    gwy-n0:
+    admin:
         type: host_port
-        target: [galera-n0]
         exposes:
-            - port: "${PORT_N0}/tcp"
-              target_port: "3306"
-        plugin:
-            docker-swarm:
-                publish_mode: host
+            - port: "${ADMIN_PORT-10000}"
+              target_port: "80"
+        target: [ phpmyadmin ]
         visual:
-            x: 100
-            y: 100
-    gwy-n1:
+            x: 60
+            y: 290
+    db:
         type: host_port
-        target: [galera-n1]
         exposes:
-            - port: "${PORT_N1}/tcp"
+            - port: "${CLUSTER_PORT-10001}"
               target_port: "3306"
-        plugin:
-            docker-swarm:
-                publish_mode: host
+        target: [ cluster ]
         visual:
-            x: 100
-            y: 250
-    gwy-n2:
-        type: host_port
-        target: [galera-n2]
-        exposes:
-            - port: "${PORT_N2}/tcp"
-              target_port: "3306"
-        plugin:
-            docker-swarm:
-                publish_mode: host
-        visual:
-            x: 100
-            y: 400
-    gwy-n3:
-        type: host_port
-        target: [galera-n3]
-        exposes:
-            - port: "${PORT_N3}/tcp"
-              target_port: "3306"
-        plugin:
-            docker-swarm:
-                publish_mode: host
-        visual:
-            x: 100
-            y: 550
-
-# alternatively:
-#   - comment out the individual node gateways section above
-#   - un-comment the gateways section below to expose the galera nodes through
-#     the swarm routing mesh, all on the same port
-
-# gateways:
-#     gwy-all:
-#         type: host_port
-#         exposes:
-#             - port: "${PORT_ALL}/tcp"
-#               target_port: "3306"
-#         target: [galera-n0, galera-n1, galera-n2, galera-n3]
-#         visual:
-#             x: 100
-#             y: 325
+            x: 60
+            y: 90
